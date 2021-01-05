@@ -14,7 +14,7 @@ def formatcheck(file):
     os.chdir(filepath)
 
     # Defining allowed file extensions
-    allowed_extension = ['.xlsx', '.csv']
+    allowed_extension = ['.xlsx', '.csv', '.xls']
 
     # checking if the path exists
     if not os.path.exists(file):
@@ -23,7 +23,7 @@ def formatcheck(file):
     # checking if the format is valid
     if file_extension not in allowed_extension:
         print('The following file has none supported file format:', file)
-    return file_extension, filepath
+    return file_extension
 
 formatcheck(file1)
 formatcheck(file2)
@@ -33,11 +33,32 @@ def reading_file(file):
     filepath = os.path.dirname(file)
     # Changing working directory to filepath
     os.chdir(filepath)
+    # Splitting file extension
+    file_extension = os.path.splitext(file)[1]
 
-    print(file)
-    # Reading file and storing it into dataframe
-    df = pd.read_excel(file)
-    print(df)
+    #Read file based on fileformat
+    if file_extension == '.xlsx' or 'xls':
+        # Reading excel and storing it into dataframe
+        return pd.read_excel(file)
+    else:
+        # Reading csv and storing it into dataframe
+        return pd.read_csv(file)
+
+data1 = reading_file(file1)
+data2 = reading_file(file2)
+
+def header_check(data):
+    #reading for 3 columns of file
+    headers = (data.columns)[:3]
+    #checking headers on correct format
+    if not (headers==(['id', 'name', 'price'])).all():
+        print('The file does not have the right header columns. Please provide format: id, name, price')
+
+header_check(data1)
+
+def file_copy(data_file1,data_file2):
+    # Check if id is present in file2
+    print(data_file1[0])
 
 
-reading_file(file1)
+file_copy(data1,data2)
