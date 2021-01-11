@@ -1,5 +1,6 @@
 import pandas as pd
 import os
+import sys
 
 file1 = '/Users/johannesschmid/Desktop/CodeBaking/Python Project/sheet1.xlsx'
 file2 = '/Users/johannesschmid/Desktop/CodeBaking/Python Project/sheet2.xlsx'
@@ -10,22 +11,23 @@ def getExtension(file):
 
 def formatcheck(file):
     # Splitting path and file extension off
-    filepath = os.path.dirname(file)
     file_extension = getExtension(file)
-
+    filepath = os.path.dirname(file)
     # Changing working directory to filepath
     os.chdir(filepath)
 
     # Defining allowed file extensions
-    allowed_extension = ['.xlsx', '.csv', '.xls']
+    allowed_extensions = ['.xlsx', '.csv', '.xls']
 
     # checking if the path exists
     if not os.path.exists(file):
-        print('The file path for the following file does not exist:', file)
+        # Throw file path error
+        sys.exit('The file path for the following file does not exist ' + file)
 
     # checking if the format is valid
-    if file_extension not in allowed_extension:
-        print('The following file has none supported file format:', file)
+    if file_extension not in allowed_extensions:
+        # Throw file format error
+        sys.exit('The following file has none supported file format: ' + file)
 
 formatcheck(file1)
 formatcheck(file2)
@@ -51,22 +53,30 @@ origin = reading_file(file1)
 destination = reading_file(file2)
 
 def headerCheck(data):
-    #reading for 3 columns of file
-    # TODO: only check on the 3 column not the first three
-    headers = (data.columns)
-    columns = ['id', 'name', 'price']
+    #reading first 3 columns of file
+    headers = data.columns
+    required_columns = ['id', 'name', 'price']
     #checking headers on correct format
-    for column in columns:
-        if column not in headers:
-            exit()
-    if ['id', 'name', 'price'] in headers:
-        print('The file does not have the right header columns. Please provide format: id, name, price')
+    for column in required_columns:
+        if not column in headers:
+            sys.exit('The file does not have the right header columns. Please provide those columns in each file: id, name, price')
 
-headerCheck(data1)
+headerCheck(origin)
+headerCheck(destination)
 
-def file_copy(data_file1,data_file2):
-    # Check if id is present in file2
-    print(data_file1[0])
+def file_copy(origin,destination):
+    # Creating first match criteria via ID
+    # Read all IDs of origin file and converting into regular array
+    origin_ids = origin['id'].to_numpy()
+    # Read all IDs of destination file and converting into regular array
+    destination_ids = destination['id'].to_numpy()
+    # Looping through all origin ids and check if it exists in destination
+    for id_value in origin_ids:
+        # If we find the id in the destination file we copy over the value
+        if id_value in destination_ids:
+            # Get the value of the origin id for the price
+            price = origin['price'][origin.id == id_value]
+            # Set value of destination file price to this price
+            destination['price'][destination.id == id_value] = price
 
-
-file_copy(data1,data2)
+file_copy(origin, destination)
