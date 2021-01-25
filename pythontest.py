@@ -2,12 +2,15 @@ import pandas as pd
 import os
 import sys
 
-file1 = 'sheet1.xlsx'
-file2 = 'sheet2.xlsx'
+file1 = input('Please insert the path of the origin file:')
+file2 = input('Please insert the path of the destination file:')
+writing_mode = input('Do you want to overwrite the file? Yes or No?').lower()
+
+if '-o' in sys.argv:
+    writing_mode = 'yes'
 
 def getExtension(file):
     return os.path.splitext(file)[1]
-
 
 def formatcheck(file):
     # Splitting path and file extension off
@@ -26,9 +29,6 @@ def formatcheck(file):
         # Throw file format error
         sys.exit('The following file has none supported file format: ' + file)
 
-formatcheck(file1)
-formatcheck(file2)
-
 def reading_file(file):
     # Splitting file extension
     file_extension = getExtension(file)
@@ -42,10 +42,6 @@ def reading_file(file):
         # Reading csv and storing it into dataframe
         return pd.read_csv(file)
 
-
-origin = reading_file(file1)
-destination = reading_file(file2)
-
 def headerCheck(data):
     # Get all headers
     headers = data.columns
@@ -53,60 +49,81 @@ def headerCheck(data):
     #checking headers on correct format
     for column in required_columns:
         if column not in headers:
-            sys.exit('The file does not have the right header columns. Please provide those columns in each file: id, name, price')
-
-headerCheck(origin)
-headerCheck(destination)
-
-#def file_copy(origin,destination):
-    # Creating first match criteria via ID
-    # Read all IDs of origin file and converting into regular array
-    #origin_ids = origin['id'].to_numpy()
-
-    # Read all IDs of destination file and converting into regular array
-    #destination_ids = destination['id']
-    # Looping through all origin ids and check if it exists in destination
-    # for id_value in destination_ids:
-    #     # If we find the id in the destination file we copy over the value
-    #     if id_value in origin_ids:
-    #         # Get the value of the origin id for the price
-    #         price = origin['price'][origin.id == id_value]
-    #         # Set value of destination file price to this price
-    #         destination['price'][destination.id == id_value] = price
-
+            sys.exit('The file does not have the right header columns. Please provide this column: ' + column)
 
 
 def file_copy(origin, destination):
     # iterate over ids in the destination file
+    # Set-up counter for matches
+    i = 0
+    # Set-up counter for where the price was already correct
+    z = 0
     for index in range(len(destination)):
         # find all items in origin that match that item id
         filterId = origin['id'] == destination.loc[index, 'id']
         matchesId = origin.loc[filterId]
+        # create counter for changed id lines
+
         # if there are no matched we do nothing, otherwise we copy over the price
         if len(matchesId) > 0:
             destination.loc[index, 'price'] = matchesId.iloc[0]['price']
-        # find all items in origin that match the name column
-        # TODO: Convert all names to lower or upper case
-        filterName = origin['name'] == destination.loc[index, 'name']
+            i += 1
+        else:
+            # find all items in origin that match the name column
+            filterName = origin['name'].str.upper() == destination.loc[index, 'name'].upper()
 
-        matchesName = origin.loc[filterName].drop_duplicates(subset='name',keep='first')
-        print(matchesName)
-        if len(matchesName) > 0:
-            destination.loc[index, 'price'] = matchesName.iloc[0]['price']
-    return destination
+            matchesName = origin.loc[filterName]
+            if len(matchesName) > 0:
+                if destination.loc[index, 'price'] == matchesName.iloc[0]['price']:
+                    z += 1
+                else:
+                    destination.loc[index, 'price'] = matchesName.iloc[0]['price']
+                    i += 1
+
+    # Report for amount of rows in origin
+    lines_origin = len(origin.axes[0])
+    print('Number of items in the origin file ', lines_origin)
+
+    # Report for amount of rows in destination
+    lines_destination = len(destination.axes[0])
+    print('Number of items in the destination file ', lines_destination)
+
+    # Report for changed lines
+    print('We have changed ', i, ' Items')
+    # Report for items that could not be matched
+    print('We were not able to match ', (lines_origin - ( i + z )) ,' item(s)')
+    # Report for lines where the price was already correct
+    print('We could not match ', z, ' Item(s)')
 
 
-
-aligned_destination = file_copy(origin, destination)
-print(destination)
-
-def writing_file(file, dataframe):
+def writing_file(file, dataframe, mode = 'yes'):
     file_extension = getExtension(file)
     if file_extension == '.xlsx' or file_extension == '.xls':
         # Reading excel and storing it into dataframe
-        return dataframe.to_excel(file)
+        # TODO: Make it pretty
+        if mode == 'no':
+            return dataframe.to_excel(file + '_edited.xlsx', index=False)
+        if mode == 'yes':
+            return dataframe.to_excel(file, index=False)
     else:
         # Reading csv and storing it into dataframe
-        return dataframe.to_csv(file)
+        if mode == 'no':
+            return dataframe.to_csv(file + '_edited.xlsx', engine='xlsxwriter')
+        if mode == 'yes':
+            return dataframe.to_csv(file, index=False)
 
-writing_file(file2, aligned_destination)
+formatcheck(file1)
+formatcheck(file2)
+
+origin = reading_file(file1)
+destination = reading_file(file2)
+
+headerCheck(origin)
+headerCheck(destination)
+
+file_copy(origin, destination)
+print(destination)
+
+writing_file(file2, destination, writing_mode)
+
+
