@@ -2,12 +2,13 @@ import pandas as pd
 import os
 import sys
 
-file1 = input('Please insert the path of the origin file:')
-file2 = input('Please insert the path of the destination file:')
-writing_mode = input('Do you want to overwrite the file? Yes or No?').lower()
+if len(sys.argv) < 3:
+    sys.exit('Two mandatory parameters necessary')
 
-if '-o' in sys.argv:
-    writing_mode = 'yes'
+file1 = sys.argv[1]
+file2 = sys.argv[2]
+
+writing_mode = '-o' in sys.argv
 
 def getExtension(file):
     return os.path.splitext(file)[1]
@@ -55,9 +56,9 @@ def headerCheck(data):
 def file_copy(origin, destination):
     # iterate over ids in the destination file
     # Set-up counter for matches
-    i = 0
+    updated_matches = 0
     # Set-up counter for where the price was already correct
-    z = 0
+    not_updated_matches = 0
     for index in range(len(destination)):
         # find all items in origin that match that item id
         filterId = origin['id'] == destination.loc[index, 'id']
@@ -66,8 +67,11 @@ def file_copy(origin, destination):
 
         # if there are no matched we do nothing, otherwise we copy over the price
         if len(matchesId) > 0:
-            destination.loc[index, 'price'] = matchesId.iloc[0]['price']
-            i += 1
+            if destination.loc[index, 'price'] == matchesId.iloc[0]['price']:
+                not_updated_matches += 1
+            else:
+                destination.loc[index, 'price'] = matchesName.iloc[0]['price']
+                updated_matches += 1
         else:
             # find all items in origin that match the name column
             filterName = origin['name'].str.upper() == destination.loc[index, 'name'].upper()
@@ -75,10 +79,10 @@ def file_copy(origin, destination):
             matchesName = origin.loc[filterName]
             if len(matchesName) > 0:
                 if destination.loc[index, 'price'] == matchesName.iloc[0]['price']:
-                    z += 1
+                    not_updated_matches += 1
                 else:
                     destination.loc[index, 'price'] = matchesName.iloc[0]['price']
-                    i += 1
+                    updated_matches += 1
 
     # Report for amount of rows in origin
     lines_origin = len(origin.axes[0])
@@ -89,28 +93,23 @@ def file_copy(origin, destination):
     print('Number of items in the destination file ', lines_destination)
 
     # Report for changed lines
-    print('We have changed ', i, ' Items')
+    print('We have changed ', updated_matches, ' Items')
     # Report for items that could not be matched
-    print('We were not able to match ', (lines_origin - ( i + z )) ,' item(s)')
+    print('We were not able to match ', (lines_destination - ( updated_matches + not_updated_matches )) ,' item(s)')
     # Report for lines where the price was already correct
-    print('We could not match ', z, ' Item(s)')
+    print('Items that were already correct: ', not_updated_matches)
 
 
-def writing_file(file, dataframe, mode = 'yes'):
+def writing_file(file, dataframe, mode):
     file_extension = getExtension(file)
+    file_without_extension = os.path.splitext(file)[0]
+    filename = file if mode == True else file_without_extension + '_edited' + file_extension
     if file_extension == '.xlsx' or file_extension == '.xls':
         # Reading excel and storing it into dataframe
-        # TODO: Make it pretty
-        if mode == 'no':
-            return dataframe.to_excel(file + '_edited.xlsx', index=False)
-        if mode == 'yes':
-            return dataframe.to_excel(file, index=False)
+        dataframe.to_excel(filename, index=False)
     else:
         # Reading csv and storing it into dataframe
-        if mode == 'no':
-            return dataframe.to_csv(file + '_edited.xlsx', engine='xlsxwriter')
-        if mode == 'yes':
-            return dataframe.to_csv(file, index=False)
+        dataframe.to_csv(filename, index=False)
 
 formatcheck(file1)
 formatcheck(file2)
@@ -122,7 +121,6 @@ headerCheck(origin)
 headerCheck(destination)
 
 file_copy(origin, destination)
-print(destination)
 
 writing_file(file2, destination, writing_mode)
 
